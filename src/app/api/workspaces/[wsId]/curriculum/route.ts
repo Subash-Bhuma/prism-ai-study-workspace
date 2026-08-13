@@ -39,6 +39,7 @@ export async function POST(
     }
     const body = await req.json().catch(() => ({}));
     const subject = body.subject ?? "this subject";
+    const goal = typeof body.goal === "string" ? body.goal.trim().slice(0, 500) : undefined;
 
     const resources = await db.resource.findMany({
       where: { workspaceId: wsId },
@@ -58,7 +59,7 @@ export async function POST(
       text: r.extractedText ?? "",
     }));
 
-    const concepts = await mapCurriculum({ subject, files });
+    const concepts = await mapCurriculum({ subject, files, goal });
 
     // Persist: replace the workspace's concepts with the freshly-mapped set.
     await db.$transaction([

@@ -24,6 +24,7 @@ export function toWorkspace(row: WorkspaceWithData) {
     id: row.id,
     name: row.name,
     examDate: row.examDate,
+    studyGoal: row.studyGoal,
     color: row.color,
     createdAt: row.createdAt.getTime(),
     resources,
@@ -64,6 +65,7 @@ export async function ensureDemoWorkspace(userId: string, email: string) {
       userId,
       name: DEMO_WORKSPACE.name,
       examDate: DEMO_WORKSPACE.examDate,
+      studyGoal: "Prepare for the exam with step-by-step practice.",
       color: DEMO_WORKSPACE.color,
       learningState: JSON.stringify({
         problems: DEMO_WORKSPACE.problems,

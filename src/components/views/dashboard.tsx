@@ -19,6 +19,7 @@ import {
   Stethoscope,
   FileBarChart,
   Layers,
+  FolderPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +63,43 @@ export function DashboardView() {
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  if (workspaces.length === 0) {
+    return (
+      <div className="flex-1 overflow-y-auto scroll-fancy">
+        <div className="mx-auto flex min-h-full max-w-5xl flex-col px-6 py-8 sm:px-8 sm:py-10">
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+            <p className="text-sm text-muted-foreground">{greeting},</p>
+            <h1 className="mt-0.5 font-serif text-3xl sm:text-4xl">{firstName}.</h1>
+          </motion.div>
+
+          <motion.section
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
+            className="grid flex-1 place-items-center py-16"
+          >
+            <div className="max-w-md text-center">
+              <div className="mx-auto mb-5 grid size-14 place-items-center rounded-lg border bg-muted/35 text-muted-foreground">
+                <FolderPlus className="size-6" />
+              </div>
+              <h2 className="font-serif text-2xl">Create your first subject</h2>
+              <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                Your workspace starts empty. Add a subject, upload your own sources, then tell Prism what you want to study.
+              </p>
+              <Button
+                className="mt-5"
+                size="lg"
+                onClick={() => document.querySelector<HTMLButtonElement>("[data-new-subject]")?.click()}
+              >
+                <Plus className="mr-1 size-4" /> New subject
+              </Button>
+            </div>
+          </motion.section>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-y-auto scroll-fancy">

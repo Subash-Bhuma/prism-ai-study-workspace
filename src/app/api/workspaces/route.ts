@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       name,
       examDate: typeof body.examDate === "string" && body.examDate ? body.examDate : null,
+      studyGoal: null,
     },
     include: { resources: true, concepts: true },
   });

@@ -15,7 +15,7 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
   }
   const body = await req.json().catch(() => ({}));
-  const data: { name?: string; examDate?: string | null } = {};
+  const data: { name?: string; examDate?: string | null; studyGoal?: string | null } = {};
   if (typeof body.name === "string") {
     const name = body.name.trim();
     if (!name || name.length > 80) {
@@ -25,6 +25,16 @@ export async function PATCH(
   }
   if (body.examDate === null || typeof body.examDate === "string") {
     data.examDate = body.examDate || null;
+  }
+  if (body.studyGoal === null || typeof body.studyGoal === "string") {
+    const studyGoal = typeof body.studyGoal === "string" ? body.studyGoal.trim() : "";
+    if (studyGoal.length > 500) {
+      return NextResponse.json(
+        { ok: false, error: "Study goal must be 500 characters or fewer." },
+        { status: 400 }
+      );
+    }
+    data.studyGoal = studyGoal || null;
   }
   const updated = await db.workspace.update({ where: { id: wsId }, data });
   return NextResponse.json({ ok: true, workspace: updated });

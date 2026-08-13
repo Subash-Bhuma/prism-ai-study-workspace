@@ -30,6 +30,7 @@ model Workspace {
   userId        String
   name          String
   examDate      String?
+  studyGoal     String?
   color         String     @default("emerald")
   learningState String     @default("{}")
   createdAt     DateTime   @default(now())

@@ -69,6 +69,7 @@ export default function Home() {
     return (
       <OnboardingView
         email={session.user.email ?? ""}
+        initialName={session.user.name}
         onDone={() => {
           // the onboarding view calls completeOnboarding which PATCHes the DB
           // and updates the session; we then route to dashboard.
@@ -81,6 +82,7 @@ export default function Home() {
     return (
       <OnboardingView
         email={session.user.email ?? ""}
+        initialName={session.user.name}
         onDone={() => setView("dashboard")}
       />
     );

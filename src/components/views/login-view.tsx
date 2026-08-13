@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { getProviders, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,11 @@ export function LoginView() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleAvailable, setGoogleAvailable] = useState(false);
+
+  useEffect(() => {
+    void getProviders().then((providers) => setGoogleAvailable(Boolean(providers?.google)));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -105,15 +110,8 @@ export function LoginView() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background relative overflow-hidden">
-      {/* ambient backdrop */}
-      <div className="pointer-events-none absolute inset-0 opacity-60">
-        <div className="absolute -top-32 -left-24 size-96 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute top-1/3 -right-24 size-80 rounded-full bg-amber-400/10 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 size-72 rounded-full bg-primary/5 blur-3xl" />
-      </div>
-
-      <div className="relative flex-1 flex items-center justify-center p-6">
+    <div className="min-h-screen flex flex-col bg-background">
+      <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
           {/* brand */}
           <div className="flex flex-col items-center gap-2 mb-8">
@@ -214,18 +212,22 @@ export function LoginView() {
               </Button>
             </form>
 
-            <div className="flex items-center gap-3 my-4">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">or</span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
+            {googleAvailable && (
+              <>
+                <div className="flex items-center gap-3 my-4">
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">or</span>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
 
-            <Button variant="outline" className="w-full mb-2" onClick={handleGoogle} disabled={loading}>
-              <span className="mr-2 grid size-4 place-items-center rounded-full border text-[10px] font-semibold">G</span>
-              Continue with Google
-            </Button>
+                <Button variant="outline" className="w-full mb-2" onClick={handleGoogle} disabled={loading}>
+                  <span className="mr-2 grid size-4 place-items-center rounded-full border text-[10px] font-semibold">G</span>
+                  Continue with Google
+                </Button>
+              </>
+            )}
 
-            <Button variant="outline" className="w-full" onClick={handleDemo} disabled={loading}>
+            <Button variant="outline" className="mt-2 w-full" onClick={handleDemo} disabled={loading}>
               <Check className="size-4 mr-1.5 text-primary" />
               Try the demo account
             </Button>

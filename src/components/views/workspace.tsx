@@ -14,7 +14,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { WorkspaceTab } from "@/lib/types";
 import { PracticeView } from "./practice-view";
 import { CurriculumView } from "./curriculum-view";
@@ -24,9 +24,9 @@ import { ReportView } from "./report-view";
 import { DiagnosticView } from "./diagnostic-view";
 
 const TABS: { id: WorkspaceTab; label: string; icon: React.ReactNode }[] = [
-  { id: "practice", label: "Practice", icon: <PenLine className="size-4" /> },
-  { id: "curriculum", label: "Topic map", icon: <GitBranch className="size-4" /> },
   { id: "resources", label: "Sources", icon: <FolderOpen className="size-4" /> },
+  { id: "curriculum", label: "Topic map", icon: <GitBranch className="size-4" /> },
+  { id: "practice", label: "Practice", icon: <PenLine className="size-4" /> },
   { id: "theory", label: "Theory", icon: <FileText className="size-4" /> },
   { id: "report", label: "Report", icon: <BarChart3 className="size-4" /> },
 ];
@@ -35,6 +35,19 @@ export function WorkspaceView() {
   const ws = useActiveWorkspace();
   const { tab, setTab } = useMira();
   const [diagOpen, setDiagOpen] = useState(false);
+
+  useEffect(() => {
+    if (!ws) return;
+    if (ws.resources.length === 0 && tab !== "resources") {
+      setTab("resources");
+    } else if (
+      ws.resources.length > 0 &&
+      ws.concepts.length === 0 &&
+      (tab === "practice" || tab === "report")
+    ) {
+      setTab("curriculum");
+    }
+  }, [setTab, tab, ws]);
 
   if (!ws) return null;
 
@@ -71,7 +84,14 @@ export function WorkspaceView() {
                   {examDays > 0 ? `${examDays}d to exam` : "exam today"}
                 </Badge>
               )}
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDiagOpen(true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setDiagOpen(true)}
+                disabled={ws.concepts.length === 0}
+                title={ws.concepts.length === 0 ? "Build the topic map first" : "Start placement check"}
+              >
                 <Stethoscope className="size-3.5" /> Placement
               </Button>
             </div>
@@ -79,27 +99,38 @@ export function WorkspaceView() {
 
           {/* tabs */}
           <div className="flex items-center gap-1 -mb-px overflow-x-auto scroll-fancy">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={cn(
-                  "relative flex items-center gap-1.5 px-3.5 py-2.5 text-sm transition-colors whitespace-nowrap border-b-2",
-                  tab === t.id
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {t.icon}
-                {t.label}
-                {tab === t.id && (
-                  <motion.div
-                    layoutId="tab-underline"
-                    className="absolute inset-x-0 -bottom-px h-0.5 bg-primary"
-                  />
-                )}
-              </button>
-            ))}
+            {TABS.map((t) => {
+              const enabled =
+                t.id === "resources" ||
+                ((t.id === "curriculum" || t.id === "theory") && ws.resources.length > 0) ||
+                (t.id === "practice" && ws.concepts.length > 0) ||
+                (t.id === "report" &&
+                  (ws.attempts.length > 0 || ws.theory.length > 0 || Boolean(ws.diagnostic)));
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => enabled && setTab(t.id)}
+                  disabled={!enabled}
+                  title={enabled ? t.label : "Add sources and build the topic map first"}
+                  className={cn(
+                    "relative flex items-center gap-1.5 px-3.5 py-2.5 text-sm transition-colors whitespace-nowrap border-b-2",
+                    tab === t.id
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                    !enabled && "cursor-not-allowed opacity-35 hover:text-muted-foreground"
+                  )}
+                >
+                  {t.icon}
+                  {t.label}
+                  {tab === t.id && (
+                    <motion.div
+                      layoutId="tab-underline"
+                      className="absolute inset-x-0 -bottom-px h-0.5 bg-primary"
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       </header>

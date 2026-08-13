@@ -257,6 +257,11 @@ export function AppShell({ children, session }: AppShellProps) {
                 <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
                   Your subjects
                 </div>
+                {workspaces.length === 0 && (
+                  <p className="px-2 py-2 text-xs leading-relaxed text-muted-foreground">
+                    No subjects yet.
+                  </p>
+                )}
                 {workspaces.map((w) => (
                   <button
                     key={w.id}
@@ -323,12 +328,12 @@ export function AppShell({ children, session }: AppShellProps) {
               </button>
               <button
                 onClick={() => {
-                  if (confirm("Reset local demo data? This clears your workspaces from this browser.")) {
+                  if (confirm("Delete all of your subject workspaces and study data?")) {
                     void resetAll().then(() => toast.success("Study data reset"));
                   }
                 }}
                 className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
-                title="Reset local demo data"
+                title="Delete all study data"
               >
                 <RotateCcw className="size-3.5" />
               </button>

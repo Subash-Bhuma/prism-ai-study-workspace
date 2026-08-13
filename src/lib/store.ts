@@ -38,6 +38,7 @@ interface MiraState {
   setTab: (t: WorkspaceTab) => void;
   openWorkspace: (id: string, tab?: WorkspaceTab) => void;
   createWorkspace: (name: string, examDate?: string | null) => Promise<string | null>;
+  updateStudyGoal: (id: string, studyGoal: string) => Promise<boolean>;
   deleteWorkspace: (id: string) => Promise<void>;
   setActiveProblem: (id: string | null) => void;
   setActiveConcept: (id: string | null) => void;
@@ -136,6 +137,26 @@ export const useMira = create<MiraState>()(
           return workspace.id;
         } catch {
           return null;
+        }
+      },
+
+      updateStudyGoal: async (id, studyGoal) => {
+        try {
+          const response = await fetch(`/api/workspaces/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ studyGoal }),
+          });
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.error || "Update failed");
+          set((state) => ({
+            workspaces: state.workspaces.map((workspace) =>
+              workspace.id === id ? { ...workspace, studyGoal: data.workspace.studyGoal } : workspace
+            ),
+          }));
+          return true;
+        } catch {
+          return false;
         }
       },
 

@@ -11,14 +11,16 @@ import { toast } from "sonner";
 
 export function OnboardingView({
   email,
+  initialName,
   onDone,
 }: {
   email: string;
+  initialName?: string | null;
   onDone: () => void;
 }) {
   const { update: updateSession } = useSession();
   const [step, setStep] = useState(0);
-  const [name, setName] = useState(email.split("@")[0] || "");
+  const [name, setName] = useState(initialName?.trim() || email.split("@")[0] || "");
   const [course, setCourse] = useState("");
   const [semester, setSemester] = useState("");
   const [examDate, setExamDate] = useState("");
@@ -31,7 +33,7 @@ export function OnboardingView({
       setStep(1);
       return;
     }
-    // Final step → persist profile to the DB and mark onboarded.
+    // Persist the profile to the database and mark onboarding complete.
     setSubmitting(true);
     fetch("/api/profile", {
       method: "PATCH",
@@ -60,15 +62,8 @@ export function OnboardingView({
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background relative overflow-hidden">
-      {/* ambient backdrop */}
-      <div className="pointer-events-none absolute inset-0 opacity-60">
-        <div className="absolute -top-32 -left-24 size-96 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute top-1/3 -right-24 size-80 rounded-full bg-amber-400/10 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 size-72 rounded-full bg-primary/5 blur-3xl" />
-      </div>
-
-      <div className="relative flex-1 flex items-center justify-center p-6">
+    <div className="min-h-screen flex flex-col bg-background">
+      <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-xl">
           {/* brand */}
           <div className="flex items-center gap-2 mb-10 justify-center">
@@ -94,7 +89,7 @@ export function OnboardingView({
                     <span className="text-primary">AI stays silent while you're right.</span>
                   </h1>
                   <p className="text-sm text-muted-foreground mt-3 max-w-md mx-auto">
-                    Prism watches you solve, write and revise — and only steps in when you're
+                    Prism watches you solve, write and revise, and only steps in when you're
                     actually stuck. Let's set you up in two quick steps.
                   </p>
                 </div>
@@ -117,7 +112,7 @@ export function OnboardingView({
                         id="course"
                         value={course}
                         onChange={(e) => setCourse(e.target.value)}
-                        placeholder="B.Tech — Engineering Maths"
+                        placeholder="B.Tech - Engineering Maths"
                       />
                     </div>
                     <div className="space-y-2">
@@ -148,7 +143,7 @@ export function OnboardingView({
                     One last thing.
                   </h1>
                   <p className="text-sm text-muted-foreground mt-3 max-w-md mx-auto">
-                    An exam date helps Prism pace your plan. Skip it if you're not sure —
+                    An exam date helps Prism pace your plan. Skip it if you're not sure;
                     you can add it later.
                   </p>
                 </div>
@@ -185,7 +180,7 @@ export function OnboardingView({
                     <div className="flex items-start gap-2.5">
                       <Volume2 className="size-4 text-amber-500 mt-0.5 shrink-0" />
                       <p className="text-sm">
-                        When you're stuck, a hint ladder eases you forward — pointed question,
+                        When you're stuck, a hint ladder eases you forward: pointed question,
                         then concept, then partial step, then full solution.
                       </p>
                     </div>
@@ -209,11 +204,6 @@ export function OnboardingView({
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* demo hint */}
-          <p className="text-center text-[11px] text-muted-foreground mt-6">
-            A demo workspace (Engineering Mathematics) is waiting for you inside.
-          </p>
         </div>
       </div>
     </div>

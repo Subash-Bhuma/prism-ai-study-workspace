@@ -56,7 +56,49 @@ async function complete(system: string, user: string): Promise<string> {
   return payload.choices?.[0]?.message?.content ?? "";
 }
 
-function fallbackCurriculum(subject: string): Concept[] {
+function fallbackCurriculum(subject: string, files: IngestedFile[]): Concept[] {
+  const headingPattern = /^(?:unit|chapter|module|topic|lecture|section)\s*[\divxlc.-]*\s*[:\-]?\s*(.+)$/i;
+  const candidates = files.flatMap((file) =>
+    file.text
+      .split(/\r?\n/)
+      .map((line) => line.trim().replace(/^[-*#\s]+/, ""))
+      .filter((line) => line.length >= 4 && line.length <= 90)
+      .map((line) => line.match(headingPattern)?.[1]?.trim() || "")
+      .filter(Boolean)
+  );
+  const fileTitles = files
+    .map((file) => file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim())
+    .filter((title) => title.length >= 4 && title.length <= 70);
+  const sourceTitles = [
+    ...new Set(candidates.length >= 2 ? candidates : [...candidates, ...fileTitles]),
+  ].slice(0, 8);
+
+  if (sourceTitles.length >= 2) {
+    const stamp = Date.now().toString(36);
+    const ids = sourceTitles.map((_, index) => `local-${index + 1}-${stamp}`);
+    const weights = sourceTitles.map((title) => {
+      const term = title.toLowerCase();
+      const mentions = files
+        .filter((file) => file.kind === "past-paper" || file.kind === "question-bank")
+        .reduce((sum, file) => sum + Math.max(0, file.text.toLowerCase().split(term).length - 1), 0);
+      return mentions + 1;
+    });
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+    return sourceTitles.map((title, index) => ({
+      id: ids[index],
+      title,
+      description: `Mapped directly from the uploaded material for ${subject}.`,
+      unit: `Unit ${index + 1}`,
+      examWeight: weights[index] / totalWeight,
+      mastery: 0,
+      status: index === 0 ? "available" : "locked",
+      dependencies: index === 0 ? [] : [ids[index - 1]],
+      hintsUsed: 0,
+      fullReveals: 0,
+      attempts: 0,
+    }));
+  }
+
   const templates = [
     ["Foundations", `Core definitions and notation for ${subject}.`, "Unit 1", 0.14, []],
     ["First principles", "Standard forms, assumptions, and basic techniques.", "Unit 1", 0.16, ["Foundations"]],
@@ -104,8 +146,9 @@ function truncate(text: string, max = 4000): string {
 export async function mapCurriculum(opts: {
   subject: string;
   files: IngestedFile[];
+  goal?: string;
 }): Promise<Concept[]> {
-  if (!AI_CONFIGURED) return fallbackCurriculum(opts.subject);
+  if (!AI_CONFIGURED) return fallbackCurriculum(opts.subject, opts.files);
   const system =
     "You are an expert academic curriculum designer for Indian engineering exams. " +
     "You are given the ACTUAL EXTRACTED TEXT of a student's uploaded study material (notes, textbook chapters, question banks, past papers, syllabus). " +
@@ -122,6 +165,7 @@ export async function mapCurriculum(opts: {
     .join("\n\n---\n\n");
 
   const user = `Subject: ${opts.subject}
+Student's goal: ${opts.goal || "Build a clear, exam-focused study path"}
 
 Below is the EXTRACTED TEXT of everything the student uploaded. Build the curriculum from THIS content.
 
@@ -282,30 +326,7 @@ export async function getHint(opts: {
 ${opts.problem.latex ? "Given: $" + opts.problem.latex + "$" : ""}
 
 Student's working so far:
-${opts.priorSteps.length ? opts.priorSteps.map((s, i) => `  ${i + 1}. ${s.text}`).join("\n") : "  (none yet)"}
-
-Give hint level ${opts.level}: ${levelDesc}`;
-
-  return (await complete(system, user)).trim();
-}
-
-export async function getFullSolution(opts: {
-  problem: { prompt: string; latex?: string; solutionPaths?: string[][] };
-}): Promise<string> {
-  if (!AI_CONFIGURED) {
-    const path = opts.problem.solutionPaths?.[0];
-    if (path?.length) return path.map((step, index) => `${index + 1}. ${step}`).join("\n");
-    return "1. Rewrite the given expression in standard form.\n2. Apply the relevant definition or method.\n3. Simplify carefully and verify the result in the original problem.";
-  }
-  const system =
-    "You are a clear mathematics instructor. Show a complete worked solution in concise steps. Plain text, use $...$ for inline math and $$...$$ for display math. No preamble.";
-  const user = `Solve fully: ${opts.problem.prompt}${opts.problem.latex ? "\nGiven: $" + opts.problem.latex + "$" : ""}`;
-  return (await complete(system, user)).trim();
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// 4. Better-method feedback — compare student path against alternatives.
-// ────────────────────────────────────────────────────────────────────────────
+${opts.priorSteps.length ? opts.priorSteps.map((s, i) => `  ${i + 1}. ${s.text}`).join("\n") : "  (none yet)"�-�G����ƭyԀ──────────────────────────────────────────
 export async function getBetterMethod(opts: {
   problem: { prompt: string; latex?: string };
   studentSteps: { text: string }[];

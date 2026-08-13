@@ -127,6 +127,7 @@ export interface Workspace {
   id: string;
   name: string;
   examDate?: string | null;
+  studyGoal?: string | null;
   color: string; // accent token
   createdAt: number;
   resources: Resource[];

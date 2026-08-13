@@ -19,12 +19,15 @@ import {
   ChevronRight,
   Image as ImageIcon,
   Info,
+  ArrowRight,
+  BrainCircuit,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useActiveWorkspace, useMira } from "@/lib/store";
 import type { Resource, ResourceKind, ResourceStatus } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Collapsible,
   CollapsibleContent,
@@ -111,10 +114,11 @@ function relativeTime(ts: number): string {
 
 export function ResourcesView() {
   const ws = useActiveWorkspace();
-  const { upsertResource, removeResource, setTab } = useMira();
+  const { upsertResource, removeResource, setTab, setConcepts, updateStudyGoal } = useMira();
   const [dragging, setDragging] = React.useState(false);
   const [showExplainer, setShowExplainer] = React.useState(false);
   const [remapping, setRemapping] = React.useState(false);
+  const [studyGoal, setStudyGoal] = React.useState(ws?.studyGoal ?? "");
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [, force] = React.useReducer((x) => x + 1, 0); // re-render on dismiss changes
 
@@ -175,6 +179,39 @@ export function ResourcesView() {
   const sorted = [...resources].sort((a, b) => b.uploadedAt - a.uploadedAt);
   const hasGap = resources.some((r) => r.status === "gap" && !dismissed.has(r.id));
   const hasOcrLow = resources.some((r) => r.status === "ocr-low" && !dismissed.has(r.id));
+  const readyResources = resources.filter((resource) => resource.status !== "parsing");
+
+  async function handleBuildWorkspace() {
+    const goal = studyGoal.trim();
+    if (!goal) {
+      toast.error("Tell Prism what you want to do with these sources.");
+      return;
+    }
+    if (readyResources.length === 0) {
+      toast.info("Wait for at least one source to finish parsing.");
+      return;
+    }
+
+    setRemapping(true);
+    try {
+      const saved = await updateStudyGoal(ws!.id, goal);
+      if (!saved) throw new Error("Prism couldn't save your study goal.");
+      const res = await fetch(`/api/workspaces/${ws!.id}/curriculum`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: ws!.name, goal }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Mapping failed");
+      setConcepts(ws!.id, data.concepts);
+      toast.success(`Prism mapped ${data.concepts.length} concepts from your sources.`);
+      setTab("curriculum");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Prism couldn't build the workspace.");
+    } finally {
+      setRemapping(false);
+    }
+  }
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
@@ -195,42 +232,22 @@ export function ResourcesView() {
             </span>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={remapping}
-          onClick={async () => {
-            if (remapping) return;
-            setRemapping(true);
-            toast.info("Prism is reading every file and rebuilding the topic map…");
-            try {
-              const res = await fetch(`/api/workspaces/${ws.id}/curriculum`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ subject: ws.name }),
-              });
-              const data = await res.json();
-              if (!data.ok) throw new Error(data.error || "Mapping failed");
-              useMira.getState().setConcepts(ws.id, data.concepts);
-              toast.success(
-                `Topic map rebuilt from ${ws.resources.length} source${ws.resources.length !== 1 ? "s" : ""} — ${data.concepts.length} concepts.`
-              );
-              setTab("curriculum");
-            } catch (e) {
-              toast.error(e instanceof Error ? e.message : "Re-map failed");
-            } finally {
-              setRemapping(false);
-            }
-          }}
-          className="gap-1.5"
-        >
-          <Sparkles className="size-3.5" />
-          {remapping ? "Mapping…" : "Re-map curriculum"}
-        </Button>
+        {resources.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={remapping || readyResources.length === 0}
+            onClick={handleBuildWorkspace}
+            className="gap-1.5"
+          >
+            <Sparkles className="size-3.5" />
+            {remapping ? "Mapping..." : ws.concepts.length > 0 ? "Rebuild topic map" : "Build topic map"}
+          </Button>
+        )}
       </div>
 
       <ScrollArea className="flex-1 min-h-0">
-        <div className="px-6 sm:px-8 py-5 space-y-5 max-w-4xl">
+        <div className="mx-auto max-w-6xl space-y-5 px-6 py-5 sm:px-8">
           {/* Insight banner */}
           {(hasGap || hasOcrLow) && (
             <div className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground flex items-start gap-2">
@@ -244,6 +261,14 @@ export function ResourcesView() {
               </span>
             </div>
           )}
+
+          <div
+            className={cn(
+              "grid gap-5",
+              resources.length > 0 && "lg:grid-cols-[minmax(0,1fr)_340px]"
+            )}
+          >
+            <div className="space-y-5">
 
           {/* Dropzone */}
           <div
@@ -261,30 +286,37 @@ export function ResourcesView() {
             }}
             onClick={() => inputRef.current?.click()}
             className={cn(
-              "relative rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all",
+              "relative cursor-pointer rounded-lg border-2 border-dashed text-center transition-all",
+              resources.length === 0 ? "grid min-h-[360px] place-items-center p-12" : "p-6",
               dragging
                 ? "border-primary bg-primary/8 scale-[1.01]"
                 : "border-border hover:border-primary/50 hover:bg-accent/40"
             )}
           >
-            <input
-              ref={inputRef}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files?.length) handleFiles(e.target.files);
-                e.target.value = "";
-              }}
-            />
-            <div className="mx-auto size-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-              <FileUp className="size-6 text-primary" />
+            <div>
+              <input
+                ref={inputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files?.length) handleFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-lg bg-primary/10">
+                <FileUp className="size-6 text-primary" />
+              </div>
+              <p className="font-serif text-lg">
+                {resources.length === 0 ? `Add sources to ${ws.name}` : "Add more sources"}
+              </p>
+              <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">
+                Drop PDFs, notes, question banks, past papers, syllabus files, or study photos here.
+              </p>
+              <Button type="button" variant="outline" className="mt-4" tabIndex={-1}>
+                <FileUp className="mr-1 size-4" /> Choose files
+              </Button>
             </div>
-            <p className="font-serif text-base">Drop files here, or click to browse</p>
-            <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
-              Drag notes, PDFs, question banks, past papers, syllabus, or a photo of your
-              teacher's handwriting. PDF, text, Markdown, CSV, JSON, LaTeX, and images are supported.
-            </p>
           </div>
 
           {/* How ingestion works */}
@@ -322,9 +354,7 @@ export function ResourcesView() {
           </Collapsible>
 
           {/* Resource list */}
-          {sorted.length === 0 ? (
-            <EmptyResources />
-          ) : (
+          {sorted.length > 0 && (
             <div className="space-y-2.5">
               <AnimatePresence initial={false}>
                 {sorted.map((r) => (
@@ -346,6 +376,60 @@ export function ResourcesView() {
               </AnimatePresence>
             </div>
           )}
+            </div>
+
+            {resources.length > 0 && (
+              <aside className="h-fit rounded-lg border bg-card p-5 lg:sticky lg:top-5">
+                <div className="mb-4 flex items-center gap-2">
+                  <div className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+                    <BrainCircuit className="size-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-lg leading-tight">What should Prism do?</h3>
+                    <p className="text-xs text-muted-foreground">Your instruction guides the workspace.</p>
+                  </div>
+                </div>
+
+                <Textarea
+                  value={studyGoal}
+                  onChange={(event) => setStudyGoal(event.target.value)}
+                  placeholder="For example: prepare me for the exam, focusing on the topics that appear most often."
+                  className="min-h-28 resize-none"
+                  maxLength={500}
+                />
+
+                <div className="mt-3 grid gap-2">
+                  {[
+                    "Prepare me for the exam",
+                    "Build a topic map from these files",
+                    "Create practice questions from my notes",
+                  ].map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => setStudyGoal(suggestion)}
+                      className="rounded-md border px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-accent hover:text-foreground"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+
+                <Button
+                  className="mt-4 w-full"
+                  onClick={handleBuildWorkspace}
+                  disabled={remapping || readyResources.length === 0 || !studyGoal.trim()}
+                >
+                  {remapping ? (
+                    <Loader2 className="mr-1 size-4 animate-spin" />
+                  ) : (
+                    <ArrowRight className="mr-1 size-4" />
+                  )}
+                  {remapping ? "Building workspace..." : ws.concepts.length > 0 ? "Update workspace" : "Build workspace"}
+                </Button>
+              </aside>
+            )}
+          </div>
         </div>
       </ScrollArea>
     </div>
@@ -524,14 +608,3 @@ function ResourceRow({
 // ─────────────────────────────────────────────────────────────────────────────
 // Empty state
 // ─────────────────────────────────────────────────────────────────────────────
-
-function EmptyResources() {
-  return (
-    <div className="rounded-xl border border-dashed border-border py-10 text-center">
-      <p className="font-serif text-lg">Nothing uploaded yet</p>
-      <p className="text-sm text-muted-foreground mt-1">
-        Don't leave a blank dashboard. Drop your first file above — Prism does the rest.
-      </p>
-    </div>
-  );
-}
