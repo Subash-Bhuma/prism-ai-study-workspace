@@ -1,6 +1,6 @@
 # Prism
 
-Prism is an AI study workspace: students solve one step at a time, the evaluator stays silent on valid work, and a four-level hint ladder appears only when requested or when the path breaks.
+Prism is an Interactive AI study teacher: students solve one step at a time, the evaluator stays silent on valid work, and a four-level hint ladder appears only when requested or when the path breaks.
 
 ## What is implemented
 
