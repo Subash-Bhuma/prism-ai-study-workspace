@@ -1,4 +1,4 @@
-# Prism
+# Interactive AI Teacher
 
 Prism is an interactive AI study workspace. Students solve, write, and revise inside a subject while the tutor stays silent on correct work and intervenes only when help is needed.
 
